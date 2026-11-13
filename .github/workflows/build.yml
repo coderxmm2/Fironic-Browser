@@ -1,0 +1,70 @@
+name: Build Fironic Browser APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find Fironic project folder
+        shell: bash
+        run: |
+          if [ -f "package.json" ]; then
+            PROJECT_DIR="."
+          else
+            PACKAGE_FILE=$(find . -mindepth 2 -maxdepth 5 -name package.json -not -path '*/node_modules/*' -print -quit)
+            if [ -z "$PACKAGE_FILE" ]; then
+              echo "ERROR: package.json was not found. Upload the ZIP contents, including package.json and the www folder."
+              exit 1
+            fi
+            PROJECT_DIR=$(dirname "$PACKAGE_FILE")
+          fi
+          echo "Using project folder: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm install
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Create Android project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npx cap add android
+
+      - name: Sync web app
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Fironic-Browser.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fironic-Browser-APK
+          path: ${{ env.PROJECT_DIR }}/Fironic-Browser.apk
+          
