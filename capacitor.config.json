@@ -1,0 +1,6 @@
+{
+  "appId": "com.fironic.browser",
+  "appName": "Fironic Browser",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
